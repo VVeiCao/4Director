@@ -3,6 +3,7 @@
 <h1 align="center">4Director: Controlling Video World Models with Rigid&nbsp;3D&nbsp;Geometry</h1>
 
 <p align="center">
+  <a href="https://arxiv.org/abs/2610.02160"><img src="https://img.shields.io/badge/arXiv-2610.02160-b31b1b.svg?style=for-the-badge" alt="arXiv"></a>
   <a href="https://stability-ai.github.io/4director/"><img src="https://img.shields.io/badge/Project-Page-green.svg?style=for-the-badge" alt="Project Page"></a>
 </p>
 
@@ -79,3 +80,19 @@
 ## Code
 
 Coming soon.
+
+## Citation
+
+If you find 4Director useful, please cite:
+
+```bibtex
+@misc{cao20264directorcontrollingvideoworld,
+  title={4Director: Controlling Video World Models with Rigid 3D Geometry},
+  author={Wei Cao and Hao Zhang and Vikram Voleti and Yuqun Wu and Mallikarjun B R and Shimon Vainer and Mark Boss and Yaoyao Liu},
+  year={2026},
+  eprint={2610.02160},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2610.02160},
+}
+```
