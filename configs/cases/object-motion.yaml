@@ -1,0 +1,30 @@
+schema_version: 4director-case-v1
+case_id: object-motion
+image: ../../data/demos/hiker-camel/scene/image.png
+# The teaser's scene point cloud and object meshes ship with the repository,
+# so stages 1 and 2 copy them instead of running MegaSAM and Pixal3D.
+background: ../../data/demos/hiker-camel/scene/background.npz
+prompt: "A man with a backpack walks along a rocky mountain trail, his shadow stretching on the ground as he moves steadily forward under bright sunlight, with rugged cliffs and sparse greenery surrounding him."
+# Stage-4 sampling seed of the published video. Another seed gives a different
+# video for the same control, sometimes a visibly worse one.
+inference_seed: 1213
+frame_count: 81
+width: 832
+height: 480
+fps: 16
+camera:
+  path: ../../data/demos/hiker-camel/cameras/static.npz
+# SHA-256 of the input image, the decoded depth control, and the published
+# video. Stages 3 and 4 print a note when a run differs.
+hashes:
+  image: 0b68b13b070b8641bf187d746ca06d828b949d12d38aaf25ac8c564ccf9068a7
+  control: 6db355dba36a3a428f406ef75c08dcee1118f40cc1ff3def14f5f4997d2d4bc5
+  output: 312923d6646a04b78870e06658c939b907253e58c2db80228a3034aafd9e578a
+objects:
+  - id: hiker
+    image: ../../data/demos/hiker-camel/objects/hiker/image.png
+    mask: ../../data/demos/hiker-camel/objects/hiker/mask.png
+    mesh: ../../data/demos/hiker-camel/objects/hiker/mesh.glb
+    in_scene: true
+    trajectory:
+      path: ../../data/demos/hiker-camel/objects/hiker/trajectory.npz

@@ -1,0 +1,4 @@
+{
+  "schema_version": "4director-case-v1",
+  "required": ["case_id", "image", "prompt", "camera", "objects"]
+}

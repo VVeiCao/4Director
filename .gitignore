@@ -1,0 +1,43 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.venv/
+
+# Everything a run produces lands here.
+output/
+
+# Weights download_models.py fetches.
+models/
+
+# conda env create leaves these behind when a pip step fails.
+environments/condaenv.*.requirements.txt
+
+# Binary model and generated media formats are not committed by default.
+*.bin
+*.ckpt
+*.glb
+*.mp4
+*.mkv
+*.npy
+*.onnx
+*.pt
+*.pth
+*.safetensors
+
+!data/demos/**/*.npz
+!data/demos/**/*.glb
+
+# Machine-specific component interpreters for the single-image app.
+components.env
+
+.env
+.env.*
+credentials.json
+**/*.pem

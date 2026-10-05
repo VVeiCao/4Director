@@ -1,0 +1,37 @@
+schema_version: 4director-case-v1
+case_id: joint-camera
+image: ../../data/demos/hiker-camel/scene/image.png
+# The teaser's scene point cloud and object meshes ship with the repository,
+# so stages 1 and 2 copy them instead of running MegaSAM and Pixal3D.
+background: ../../data/demos/hiker-camel/scene/background.npz
+reference_image: ../../data/demos/hiker-camel/scene/with-camel.png
+prompt: "An adult man wearing a dark backpack walks steadily from left to right along a rocky alpine trail in bright midday sunlight. Beside him walks exactly one camel: a single tan, two-humped Bactrian camel with a long curved neck, a dark muzzle, sturdy legs, and a natural sandy-brown coat. The same one camel remains clearly visible and anatomically consistent throughout the entire shot, walking calmly at a realistic pace near the hiker; there are no other camels, no duplicate camels, and no additional animals. Their feet contact the uneven gravel trail naturally, with coherent moving shadows. Rugged pale-gray cliffs, loose rocks, and sparse green alpine vegetation fill the background. Photorealistic documentary footage, stable identities, consistent scale, realistic motion, and no cuts."
+# Stage-4 sampling seed of the published video. Another seed gives a different
+# video for the same control, sometimes a visibly worse one.
+inference_seed: 123
+frame_count: 81
+width: 832
+height: 480
+fps: 16
+camera:
+  path: ../../data/demos/hiker-camel/cameras/yaw-80.npz
+# SHA-256 of the input image, the decoded depth control, and the published
+# video. Stages 3 and 4 print a note when a run differs.
+hashes:
+  image: 0b68b13b070b8641bf187d746ca06d828b949d12d38aaf25ac8c564ccf9068a7
+  control: 38668be79c72f4c7608da7815c40995635e3c59570339d5a23f513fdc2a9865f
+  output: 90fcc29584c7f530ac1a1ba308811764758f0627e9a6a14afe988ff4c5127d61
+objects:
+  - id: hiker
+    image: ../../data/demos/hiker-camel/objects/hiker/image.png
+    mask: ../../data/demos/hiker-camel/objects/hiker/mask.png
+    mesh: ../../data/demos/hiker-camel/objects/hiker/mesh.glb
+    in_scene: true
+    trajectory:
+      path: ../../data/demos/hiker-camel/objects/hiker/trajectory.npz
+  - id: camel
+    mask: ../../data/demos/hiker-camel/objects/camel/mask.png
+    mesh: ../../data/demos/hiker-camel/objects/camel/mesh.glb
+    image: ../../data/demos/hiker-camel/objects/camel/image.png
+    trajectory:
+      path: ../../data/demos/hiker-camel/objects/camel/trajectory.npz

@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "4director"
+version = "0.1.0"
+description = "4Director Case runner, single-image app, and point-cloud viewer"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = {file = "LICENSE.md"}
+authors = [{ name = "4Director authors" }]
+dependencies = [
+  "numpy>=1.26,<3",
+  "opencv-python-headless>=4.10,<5",
+  "pillow>=10,<12",
+]
+
+[project.optional-dependencies]
+ui = [
+  "gradio>=5.50,<6",
+  "trimesh>=4,<6",
+  "viser>=1.0,<2",
+]
+
+[project.scripts]
+4director-frame0-gradio = "fourdirector.apps.frame0_gradio:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

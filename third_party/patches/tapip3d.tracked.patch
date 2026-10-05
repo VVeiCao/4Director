@@ -1,0 +1,206 @@
+diff --git a/third_party/megasam/camera_tracking_scripts/test_demo.py b/third_party/megasam/camera_tracking_scripts/test_demo.py
+index b79d566..56e09d7 100644
+--- a/third_party/megasam/camera_tracking_scripts/test_demo.py
++++ b/third_party/megasam/camera_tracking_scripts/test_demo.py
+@@ -72,9 +72,10 @@ def image_stream(
+     # depth =  1. / pt_data["depth"]
+ 
+     mono_disp = mono_disp_list[t]
++    mono_valid_mask = np.isfinite(mono_disp) & (mono_disp > 0)
+     if use_depth_cvd:
+         cvd_disp = cvd_disp_list[t]
+-        cvd_valid_mask = (cvd_disp > 0)
++        cvd_valid_mask = np.isfinite(cvd_disp) & (cvd_disp > 0)
+     # mono_disp = np.float32(np.load(disp_file)) #/ 300.0
+     depth = np.clip(
+         1.0 / ((1.0 / aligns[2]) * (aligns[0] * mono_disp + aligns[1])),
+@@ -88,6 +89,7 @@ def image_stream(
+             1e4,
+         )
+     depth[depth < 1e-2] = 0.0
++    depth[~mono_valid_mask] = 0.0
+     if use_depth_cvd:
+         cvd_depth[cvd_depth < 1e-2] = 0.0
+         cvd_depth[~cvd_valid_mask] = 0.0
+@@ -263,6 +265,14 @@ if __name__ == "__main__":
+           os.path.join("%s/%s" % (args.depth_for_cvd, scene_name), "*.npy")
+       )
+   )
++  input_counts = {
++      "images": len(image_list),
++      "mono_disparities": len(mono_disp_paths),
++      "metric_depths": len(metric_depth_paths),
++      "cvd_disparities": len(depth_for_cvd_paths),
++  }
++  if len(set(input_counts.values())) != 1 or not image_list:
++    raise ValueError(f"Geometry input cardinality mismatch: {input_counts}")
+ 
+   img_0 = cv2.imread(image_list[0])
+   scales = []
+@@ -272,13 +282,39 @@ if __name__ == "__main__":
+   mono_disp_list = []
+   cvd_disp_list = []
+   fovs = []
++  allow_invalid_alignment_frames = (
++      os.environ.get("MEGASAM_ALLOW_INVALID_DEPTH_ALIGNMENT_FRAMES", "0")
++      == "1"
++  )
++  skipped_alignment_frames = []
++  maximum_skipped_fraction = float(
++      os.environ.get("MEGASAM_MAX_SKIPPED_ALIGNMENT_FRACTION", "0.25")
++  )
++  if not 0.0 <= maximum_skipped_fraction < 1.0:
++    raise ValueError(
++        "MEGASAM_MAX_SKIPPED_ALIGNMENT_FRACTION must be in [0, 1)"
++    )
++  maximum_skipped_frames = int(
++      np.floor(len(image_list) * maximum_skipped_fraction)
++  )
++
++  def skip_alignment_frame(frame_index, reason):
++    skipped_alignment_frames.append(frame_index)
++    print(f"Skipping frame {frame_index}: {reason}")
++    if len(skipped_alignment_frames) > maximum_skipped_frames:
++      raise ValueError(
++          f"Skipped {len(skipped_alignment_frames)}/{len(image_list)} "
++          "depth-alignment candidates, exceeding limit "
++          f"{maximum_skipped_frames}"
++      )
++
+   for t, (mono_disp_file, metric_depth_file, depth_for_cvd_file) in enumerate(
+       zip(mono_disp_paths, metric_depth_paths, depth_for_cvd_paths)
+   ):
+     da_disp = np.float32(np.load(mono_disp_file))  # / 300.0
+     cvd_disp = np.float32(np.load(depth_for_cvd_file))
+     uni_data = np.load(metric_depth_file)
+-    metric_depth = uni_data["depth"]
++    metric_depth = np.float32(uni_data["depth"])
+ 
+     fovs.append(uni_data["fov"])
+ 
+@@ -294,26 +330,76 @@ if __name__ == "__main__":
+     )
+     mono_disp_list.append(da_disp)
+     cvd_disp_list.append(cvd_disp)
+-    gt_disp = 1.0 / (metric_depth + 1e-8)
+-
+-    # avoid some bug from UniDepth
+-    valid_mask = (metric_depth < 2.0) & (da_disp < 0.02)
+-    gt_disp[valid_mask] = 1e-2
+-
+-    gt_disp_ms = gt_disp - np.median(gt_disp) + 1e-8
+-    da_disp_ms = da_disp - np.median(da_disp) + 1e-8
+-    cvd_disp_ms = cvd_disp - np.median(cvd_disp) + 1e-8
+-
+-    scale = np.median(gt_disp_ms / da_disp_ms)
+-    shift = np.median(gt_disp - scale * da_disp)
+-    scale_cvd = np.median(gt_disp_ms / cvd_disp_ms)
+-    shift_cvd = np.median(gt_disp - scale_cvd * cvd_disp)
++    joint_valid = (
++        np.isfinite(metric_depth)
++        & (metric_depth > 0)
++        & np.isfinite(da_disp)
++        & (da_disp > 0)
++        & np.isfinite(cvd_disp)
++        & (cvd_disp > 0)
++    )
++    if np.count_nonzero(joint_valid) < 100:
++      if allow_invalid_alignment_frames:
++        skip_alignment_frame(
++            t,
++            f"only {np.count_nonzero(joint_valid)} joint valid depth pixels",
++        )
++        continue
++      raise ValueError(
++          f"Frame {t} has only {np.count_nonzero(joint_valid)} "
++          "joint valid depth pixels"
++      )
++    gt_disp = 1.0 / metric_depth[joint_valid]
++    da_valid = da_disp[joint_valid]
++    cvd_valid = cvd_disp[joint_valid]
++    gt_disp_ms = gt_disp - np.median(gt_disp)
++    da_disp_ms = da_valid - np.median(da_valid)
++    cvd_disp_ms = cvd_valid - np.median(cvd_valid)
++    da_ratio_valid = np.abs(da_disp_ms) > 1e-6
++    cvd_ratio_valid = np.abs(cvd_disp_ms) > 1e-6
++    if np.count_nonzero(da_ratio_valid) < 100:
++      if allow_invalid_alignment_frames:
++        skip_alignment_frame(t, "degenerate monocular disparity")
++        continue
++      raise ValueError(f"Frame {t} has degenerate monocular disparity")
++    if np.count_nonzero(cvd_ratio_valid) < 100:
++      if allow_invalid_alignment_frames:
++        skip_alignment_frame(t, "degenerate CVD disparity")
++        continue
++      raise ValueError(f"Frame {t} has degenerate CVD disparity")
++    scale = np.median(
++        gt_disp_ms[da_ratio_valid] / da_disp_ms[da_ratio_valid]
++    )
++    shift = np.median(gt_disp - scale * da_valid)
++    scale_cvd = np.median(
++        gt_disp_ms[cvd_ratio_valid] / cvd_disp_ms[cvd_ratio_valid]
++    )
++    shift_cvd = np.median(gt_disp - scale_cvd * cvd_valid)
++    if (
++        not np.isfinite(scale)
++        or not np.isfinite(shift)
++        or scale <= 0
++        or not np.isfinite(scale_cvd)
++        or not np.isfinite(shift_cvd)
++        or scale_cvd <= 0
++    ):
++      if allow_invalid_alignment_frames:
++        skip_alignment_frame(t, "invalid depth alignment")
++        continue
++      raise ValueError(f"Frame {t} produced invalid depth alignment")
+ 
+     scales.append(scale)
+     shifts.append(shift)
+     scales_cvd.append(scale_cvd)
+     shifts_cvd.append(shift_cvd)
+ 
++  if not scales or not scales_cvd:
++    raise ValueError("No valid frames remain for global depth alignment")
++  if skipped_alignment_frames:
++    print(
++        "Skipped invalid depth-alignment frames: "
++        + ",".join(str(value) for value in skipped_alignment_frames)
++    )
+   est_mov = np.median(fovs)
+   if args.fov_x:
+     est_mov = float(args.fov_x)
+@@ -343,14 +429,28 @@ if __name__ == "__main__":
+   align_shift = shifts[med_idx]  # np.median(np.array(shifts))
+   align_scale_cvd = scales_cvd[med_idx_cvd]  # np.median(np.array(scales_cvd))
+   align_shift_cvd = shifts_cvd[med_idx_cvd]  # np.median(np.array(shifts_cvd))
+-  normalize_scale = (
+-      np.percentile((align_scale * np.array(mono_disp_list) + align_shift), 98)
+-      / 2.0
++  aligned_mono_values = np.concatenate(
++      [
++          (align_scale * value[value > 0] + align_shift)
++          for value in mono_disp_list
++      ]
+   )
+-  normalize_scale_cvd = (
+-      np.percentile((align_scale_cvd * np.array(cvd_disp_list) + align_shift_cvd), 98)
+-      / 2.0
++  aligned_cvd_values = np.concatenate(
++      [
++          (align_scale_cvd * value[value > 0] + align_shift_cvd)
++          for value in cvd_disp_list
++      ]
+   )
++  aligned_mono_values = aligned_mono_values[
++      np.isfinite(aligned_mono_values) & (aligned_mono_values > 0)
++  ]
++  aligned_cvd_values = aligned_cvd_values[
++      np.isfinite(aligned_cvd_values) & (aligned_cvd_values > 0)
++  ]
++  if len(aligned_mono_values) < 100 or len(aligned_cvd_values) < 100:
++    raise ValueError("Insufficient positive aligned disparity values")
++  normalize_scale = np.percentile(aligned_mono_values, 98) / 2.0
++  normalize_scale_cvd = np.percentile(aligned_cvd_values, 98) / 2.0
+ 
+   aligns = (align_scale, align_shift, normalize_scale)
+   aligns_cvd = (align_scale_cvd, align_shift_cvd, normalize_scale_cvd)

@@ -1,0 +1,14 @@
+# The single environment every stage and the app run in. After creating it:
+#   conda activate 4director
+#   pip install -e '.[ui]'
+#   CUDA_HOME=/usr/local/cuda-12.8 bash environments/install_extensions.sh
+name: 4director
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11.15
+  - pip
+  - ffmpeg
+  - pip:
+      - -r requirements/4director.txt
